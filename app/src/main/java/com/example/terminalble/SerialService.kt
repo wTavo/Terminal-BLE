@@ -77,7 +77,6 @@ class SerialService : Service(), SerialListener {
      * Lifecycle
      */
     override fun onDestroy() {
-        cancelNotification()
         disconnect()
         super.onDestroy()
     }
@@ -98,7 +97,6 @@ class SerialService : Service(), SerialListener {
 
     fun disconnect() {
         connected = false // ignore data,errors while disconnecting
-        cancelNotification()
         socket?.disconnect()
         socket = null
     }
@@ -111,8 +109,6 @@ class SerialService : Service(), SerialListener {
     fun attach(listener: SerialListener) {
         if (Looper.getMainLooper().thread != Thread.currentThread())
             throw IllegalArgumentException("not in main thread")
-        initNotification()
-        cancelNotification()
         synchronized(this) {
             this.listener = listener
         }
@@ -137,47 +133,8 @@ class SerialService : Service(), SerialListener {
     }
 
     fun detach() {
-        if (connected) createNotification()
+        if (connected)
         listener = null
-    }
-
-    private fun initNotification() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nc = NotificationChannel(Constants.NOTIFICATION_CHANNEL, "Background service", NotificationManager.IMPORTANCE_LOW)
-            nc.setShowBadge(false)
-            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            nm.createNotificationChannel(nc)
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    fun areNotificationsEnabled(): Boolean {
-        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val nc = nm.getNotificationChannel(Constants.NOTIFICATION_CHANNEL)
-        return nm.areNotificationsEnabled() && nc != null && nc.importance > NotificationManager.IMPORTANCE_NONE
-    }
-
-    private fun createNotification() {
-        val disconnectIntent = Intent().setPackage(packageName).setAction(Constants.INTENT_ACTION_DISCONNECT)
-        val restartIntent = Intent().setClassName(this, Constants.INTENT_CLASS_MAIN_ACTIVITY)
-            .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
-        val disconnectPendingIntent = PendingIntent.getBroadcast(this, 1, disconnectIntent, flags)
-        val restartPendingIntent = PendingIntent.getActivity(this, 1, restartIntent, flags)
-        val builder = NotificationCompat.Builder(this, Constants.NOTIFICATION_CHANNEL)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setColor(resources.getColor(R.color.black))
-            .setContentTitle(resources.getString(R.string.app_name))
-            .setContentText(socket?.getName()?.let { "Connected to $it" } ?: "Background Service")
-            .setContentIntent(restartPendingIntent)
-            .setOngoing(true)
-            .addAction(NotificationCompat.Action(R.drawable.ic_launcher_foreground, "Disconnect", disconnectPendingIntent))
-        val notification = builder.build()
-        startForeground(Constants.NOTIFY_MANAGER_START_FOREGROUND_SERVICE, notification)
-    }
-
-    private fun cancelNotification() {
-        stopForeground(true)
     }
 
     /**

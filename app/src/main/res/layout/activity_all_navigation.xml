@@ -19,7 +19,10 @@
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:layout_gravity="start"
+        android:background="#201E1E"
         android:fitsSystemWindows="true"
         app:headerLayout="@layout/nav_header_all_navigation"
+        app:itemIconTint="@color/white"
+        app:itemTextColor="#FFFFFF"
         app:menu="@menu/activity_all_navigation_drawer" />
 </androidx.drawerlayout.widget.DrawerLayout>

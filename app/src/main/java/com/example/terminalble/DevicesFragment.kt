@@ -268,7 +268,7 @@ class DevicesFragment : ListFragment() {
             return
         val nextScanState = ScanState.LE_SCAN
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (!BluetoothUtil.hasPermissions(this, requestBluetoothPermissionLauncherForStartScan))
+            if (!hasPermissions(this, requestBluetoothPermissionLauncherForStartScan))
                 return
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (checkSelfPermission(
@@ -371,16 +371,27 @@ class DevicesFragment : ListFragment() {
         scanState = ScanState.NONE
     }
 
-    @SuppressLint("UseRequireInsteadOfGet")
     override fun onListItemClick(l: ListView, v: View, position: Int, id: Long) {
         stopScan()
         val device = listItems[position - 1]
+        saveLastDeviceAddress(device.device.address, true) // Guardar la dirección del dispositivo seleccionado y establecer el booleano en true
+
         val args = Bundle()
         args.putString("device", device.device.address)
+        args.putBoolean("deviceSelected", true) // Pasar el booleano a TerminalFragment
 
         // Usar NavController para navegar al TerminalFragment
         val navController = findNavController()
         navController.navigate(R.id.nav_terminal, args)
+    }
+
+    private fun saveLastDeviceAddress(address: String, deviceSelected: Boolean) {
+        val sharedPref = requireActivity().getPreferences(Context.MODE_PRIVATE) ?: return
+        with(sharedPref.edit()) {
+            putBoolean("DEVICE_SELECTED", deviceSelected)
+            putString("LAST_DEVICE_ADDRESS", address)
+            apply()
+        }
     }
 
 }

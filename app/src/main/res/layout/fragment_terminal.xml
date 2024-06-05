@@ -12,6 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
+        android:background="#D7000000"
         android:freezesText="true"
         android:gravity="bottom"
         android:scrollbars="vertical"
@@ -19,12 +20,13 @@
 
     <View
         android:layout_width="match_parent"
-        android:background="?android:attr/listDivider"
-        android:layout_height="2dp" />
+        android:layout_height="2dp"
+        android:background="#D7000000" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="#D7000000"
         android:orientation="horizontal">
 
         <EditText
@@ -32,14 +34,18 @@
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
+            android:backgroundTint="#FFFFFF"
             android:inputType="text|textNoSuggestions"
-            android:singleLine="true" />
+            android:singleLine="true"
+            android:textColor="#FFFFFF" />
 
         <ImageButton
             android:id="@+id/send_btn"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:srcCompat="@drawable/ic_launcher_background" />
+            android:backgroundTint="#454040"
+            android:tint="#FFFFFF"
+            app:srcCompat="@drawable/enviar" />
     </LinearLayout>
 
 </LinearLayout>

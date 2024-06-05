@@ -10,6 +10,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.icu.text.SimpleDateFormat
+import android.icu.util.Calendar
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -28,8 +30,10 @@ import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.ActivityCompat.finishAffinity
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import java.util.Arrays
+import java.util.Locale
 
 class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPressedListener {
 
@@ -47,6 +51,8 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
     private var hexEnabled: Boolean = false
     private var pendingNewline: Boolean = false
     private var newline: String = TextUtil.newline_crlf
+
+    private var isConnected: Boolean = false
 
     /*
      * Lifecycle
@@ -106,7 +112,12 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
         super.onResume()
         if (initialStart && service != null) {
             initialStart = false
-            requireActivity().runOnUiThread { connect() }
+            requireActivity().runOnUiThread {
+                val lastDeviceAddress = getLastDeviceAddress()
+                if (lastDeviceAddress != null) {
+                    connect() // Conectar automáticamente si hay un dispositivo guardado
+                }
+            }
         }
     }
 
@@ -115,7 +126,20 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
         service?.attach(this)
         if (initialStart && isResumed) {
             initialStart = false
-            requireActivity().runOnUiThread { connect() }
+
+            // Verificar si se seleccionó un dispositivo
+            val sharedPref = requireActivity().getPreferences(Context.MODE_PRIVATE)
+            val deviceSelected = sharedPref.getBoolean("DEVICE_SELECTED", false)
+
+            if (deviceSelected) {
+                requireActivity().runOnUiThread { connect() }
+
+                // Restablecer el valor del booleano a false después de la conexión
+                with(sharedPref.edit()) {
+                    putBoolean("DEVICE_SELECTED", false)
+                    apply()
+                }
+            }
         }
     }
 
@@ -129,7 +153,7 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_terminal, container, false)
         receiveText = view.findViewById(R.id.receive_text)
-        receiveText.setTextColor(resources.getColor(R.color.black)) // set as default color to reduce number of spans
+        receiveText.setTextColor(resources.getColor(R.color.yellow)) // set as default color to reduce number of spans
         receiveText.movementMethod = ScrollingMovementMethod.getInstance()
 
         sendText = view.findViewById(R.id.send_text)
@@ -145,14 +169,43 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
 
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
         inflater.inflate(R.menu.menu_terminal, menu)
+        super.onCreateOptionsMenu(menu, inflater)
     }
 
     override fun onPrepareOptionsMenu(menu: Menu) {
-        menu.findItem(R.id.hex).isChecked = hexEnabled
+        super.onPrepareOptionsMenu(menu)
+        val connectItem = menu.findItem(R.id.connect)
+        val disconnectItem = menu.findItem(R.id.disconnect)
+        if (isConnected) {
+            connectItem.isVisible = true
+            disconnectItem.isVisible = false
+        } else {
+            connectItem.isVisible = false
+            disconnectItem.isVisible = true
+        }
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.connect -> {
+                disconnect()
+                // Agregar la hora y la fecha al mensaje
+                val timestamp = getCurrentTimestamp()
+                val spn = SpannableStringBuilder("$timestamp Desconectado\n")
+                spn.setSpan(
+                    ForegroundColorSpan(resources.getColor(R.color.green)),
+                    0,
+                    timestamp.length,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                receiveText.append(spn)
+                true
+            }
+
+            R.id.disconnect -> {
+                connect()
+                true
+            }
             R.id.clear -> {
                 receiveText.text = ""
                 true
@@ -172,14 +225,49 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
     /*
      * Serial + UI
      */
+    @SuppressLint("MissingPermission")
     private fun connect() {
         try {
             val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
+            deviceAddress = getLastDeviceAddress()
+            if (deviceAddress == null) {
+                val statusText = "No hay dispositivo seleccionado"
+                val spn = SpannableStringBuilder()
+                spn.append(getCurrentTimestamp())
+                spn.setSpan(
+                    ForegroundColorSpan(resources.getColor(R.color.green)),
+                    0,
+                    spn.length,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                spn.append(" $statusText\n")
+                receiveText.append(spn)
+                return
+            }
             val device = bluetoothAdapter.getRemoteDevice(deviceAddress)
-            status("connecting...")
+            val statusText = "Conectando a ${device.name}...\n"
+            val spn = SpannableStringBuilder()
+            spn.append(getCurrentTimestamp())
+            spn.setSpan(
+                ForegroundColorSpan(resources.getColor(R.color.green)),
+                0,
+                spn.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            spn.append(" $statusText")
+            spn.setSpan(
+                ForegroundColorSpan(ContextCompat.getColor(requireContext(), R.color.yellow)),
+                spn.length - statusText.length,
+                spn.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            receiveText.append(spn)
             connected = Connected.Pending
             val socket = SerialSocket(requireActivity().applicationContext, device)
             service?.connect(socket)
+            isConnected = true
+            saveLastDeviceAddress(deviceAddress!!) // Guarda el dispositivo actual como el último dispositivo conectado
+            requireActivity().invalidateOptionsMenu() // Actualizar el menú
         } catch (e: Exception) {
             onSerialConnectError(e)
         }
@@ -188,11 +276,13 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
     private fun disconnect() {
         connected = Connected.False
         service?.disconnect()
+        isConnected = false
+        requireActivity().invalidateOptionsMenu()  // Actualizar el menú
     }
 
     private fun send(str: String) {
         if (connected != Connected.True) {
-            Toast.makeText(requireActivity(), "not connected", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireActivity(), "Sin conexión", Toast.LENGTH_SHORT).show()
             return
         }
         try {
@@ -208,13 +298,27 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
                 msg = str
                 data = (str + newline).toByteArray()
             }
-            val spn = SpannableStringBuilder("$msg\n")
+            val spn = SpannableStringBuilder()
+
+            // Agregar la hora y la fecha al mensaje
+            val timestamp = getCurrentTimestamp()
+            spn.append(timestamp)
             spn.setSpan(
-                ForegroundColorSpan(resources.getColor(R.color.black)),
+                ForegroundColorSpan(resources.getColor(R.color.green)),
                 0,
+                timestamp.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            spn.append(" ")
+
+            spn.append(msg).append('\n')
+            spn.setSpan(
+                ForegroundColorSpan(resources.getColor(R.color.white)),
+                timestamp.length + 1,
                 spn.length,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
             )
+
             receiveText.append(spn)
             service?.write(data)
         } catch (e: Exception) {
@@ -225,6 +329,10 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
     private fun receive(datas: ArrayDeque<ByteArray>) {
         val spn = SpannableStringBuilder()
         for (data in datas) {
+            // Agregar la hora y la fecha al mensaje recibido
+            spn.append(getCurrentTimestamp(), ForegroundColorSpan(resources.getColor(R.color.green)), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                .append(" ")
+
             if (hexEnabled) {
                 spn.append(TextUtil.toHexString(data)).append('\n')
             } else {
@@ -247,7 +355,15 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
                 spn.append(TextUtil.toCaretString(msg, newline.isNotEmpty()))
             }
         }
+
         receiveText.append(spn)
+    }
+
+    // Método para obtener la hora y la fecha actual
+    private fun getCurrentTimestamp(): String {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val currentTime = Calendar.getInstance().time
+        return dateFormat.format(currentTime) + ""
     }
 
     private fun status(str: String) {
@@ -262,33 +378,51 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
     }
 
     /*
-     * starting with Android 14, notifications are not shown in notification bar by default when App is in background
-     */
-
-    private fun showNotificationSettings() {
-        val intent = Intent()
-        intent.action = "android.settings.APP_NOTIFICATION_SETTINGS"
-        intent.putExtra("android.provider.extra.APP_PACKAGE", requireActivity().packageName)
-        startActivity(intent)
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
-        if (Arrays.equals(permissions, arrayOf(Manifest.permission.POST_NOTIFICATIONS)) &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && service?.areNotificationsEnabled() == false
-        )
-            showNotificationSettings()
-    }
-
-    /*
      * SerialListener
      */
     override fun onSerialConnect() {
-        status("connected")
+        val statusText = "Conexión exitosa\n"
+        val spn = SpannableStringBuilder()
+        spn.append(getCurrentTimestamp())
+        spn.setSpan(
+            ForegroundColorSpan(resources.getColor(R.color.green)),
+            0,
+            spn.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        spn.append(" $statusText")
+        spn.setSpan(
+            ForegroundColorSpan(ContextCompat.getColor(requireContext(), R.color.yellow)),
+            spn.length - statusText.length,
+            spn.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        receiveText.append(spn)
         connected = Connected.True
+        isConnected = true
+
+        // Verifica si deviceAddress es nulo antes de guardar
+        if (deviceAddress != null) {
+            saveLastDeviceAddress(deviceAddress!!) // Guarda la dirección del dispositivo conectado
+        } else {
+            status("Error: deviceAddress es nulo")
+        }
+
+        requireActivity().invalidateOptionsMenu() // Actualizar el menú
     }
 
     override fun onSerialConnectError(e: Exception) {
-        status("connection failed: ${e.message}")
+        val errorMessage = "Conexión fallida: ${e.message}"
+        val spn = SpannableStringBuilder()
+        spn.append(getCurrentTimestamp())
+        spn.setSpan(
+            ForegroundColorSpan(resources.getColor(R.color.green)),
+            0,
+            spn.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        spn.append(" $errorMessage\n")
+        receiveText.append(spn)
         disconnect()
     }
 
@@ -303,11 +437,34 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
     }
 
     override fun onSerialIoError(e: Exception) {
-        status("connection lost: ${e.message}")
+        val errorMessage = "Conexión perdida: ${e.message}"
+        val spn = SpannableStringBuilder()
+        spn.append(getCurrentTimestamp())
+        spn.setSpan(
+            ForegroundColorSpan(resources.getColor(R.color.green)),
+            0,
+            spn.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        spn.append(" $errorMessage\n")
+        receiveText.append(spn)
         disconnect()
     }
 
     override fun onBackPressedInFragment() {
         TODO("Not yet implemented")
+    }
+
+    private fun saveLastDeviceAddress(address: String) {
+        val sharedPref = requireActivity().getPreferences(Context.MODE_PRIVATE) ?: return
+        with(sharedPref.edit()) {
+            putString("LAST_DEVICE_ADDRESS", address)
+            apply()
+        }
+    }
+
+    private fun getLastDeviceAddress(): String? {
+        val sharedPref = requireActivity().getPreferences(Context.MODE_PRIVATE)
+        return sharedPref.getString("LAST_DEVICE_ADDRESS", null)
     }
 }
