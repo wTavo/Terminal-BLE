@@ -1,0 +1,33 @@
+<resources>
+    <string name="app_name">TerminalBLE</string>
+    <string name="devices">Bluetooth LE Devices</string>
+
+    <string name="bluetooth_permission_title">Bluetooth permission</string>
+    <string name="bluetooth_permission_grant">Bluetooth permission is required by this App. Please grant in next dialog.</string>
+    <string name="bluetooth_permission_denied">Bluetooth permission was permanently denied. You have to enable permission \"%s\" in App settings.</string>
+
+    <string name="location_permission_title">Location permission</string>
+    <string name="location_permission_grant">This app does not use location information, but scanning for Bluetooth LE devices requires this permission. Please grant in next dialog.</string>
+    <string name="location_permission_denied">As location permission has not been granted, this app cannot scan for Bluetooth LE devices.</string>
+
+    <string name="pairing_request">PAIRING requested\n-> Perform pairing steps. Connect again</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="title_activity_navigation_dt">NavigationDT</string>
+    <string name="title_activity_all_navigation">AllNavigation</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+    <string name="nav_header_title">Android Studio</string>
+    <string name="nav_header_subtitle">android.studio@android.com</string>
+    <string name="nav_header_desc">Navigation header</string>
+    <string name="action_settings">Settings</string>
+
+    <string name="menu_devices">Devices</string>
+    <string name="menu_terminal">Terminal</string>
+    <string name="menu_otp">OTP</string>
+
+    <!--Navigation horizontal -->
+    <string name="title_devices">Devices</string>
+    <string name="title_terminal">Terminal</string>
+    <string name="title_otp">OTP</string>
+</resources>
