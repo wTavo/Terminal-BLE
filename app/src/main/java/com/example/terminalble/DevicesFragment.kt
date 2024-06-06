@@ -137,12 +137,12 @@ class DevicesFragment : ListFragment() {
 
                 // Cambiar el color del texto si el dispositivo está vinculado
                 if (device.device.bondState == BluetoothDevice.BOND_BONDED) {
-                    text1?.setTextColor(Color.RED)
-                    text2?.setTextColor(Color.RED)
+                    text1?.setTextColor(Color.GREEN)
+                    text2?.setTextColor(Color.GREEN)
                 } else {
                     // Si el dispositivo no está vinculado, usar el color predeterminado
-                    text1?.setTextColor(Color.BLACK)
-                    text2?.setTextColor(Color.BLACK)
+                    text1?.setTextColor(Color.WHITE)
+                    text2?.setTextColor(Color.WHITE)
                 }
 
                 return view!!
@@ -155,7 +155,7 @@ class DevicesFragment : ListFragment() {
         setListAdapter(null)
         val header = requireActivity().layoutInflater.inflate(R.layout.device_list_header, null, false)
         listView.addHeaderView(header, null, false)
-        setEmptyText("initializing...")
+        setEmptyText("Inicializando...")
         (listView.emptyView as TextView).textSize = 18f
         setListAdapter(listAdapter)
     }
@@ -177,9 +177,9 @@ class DevicesFragment : ListFragment() {
         super.onResume()
         requireActivity().registerReceiver(discoveryBroadcastReceiver, discoveryIntentFilter)
         if (bluetoothAdapter == null) {
-            setEmptyText("<bluetooth LE not supported>")
+            setEmptyText("<Bluetooth LE no soportado>")
         } else if (!bluetoothAdapter!!.isEnabled) {
-            setEmptyText("<bluetooth is disabled>")
+            setEmptyText("<Bluetooth deshabilitado>")
             menu?.let {
                 listItems.clear()
                 listAdapter.notifyDataSetChanged()
@@ -200,10 +200,10 @@ class DevicesFragment : ListFragment() {
                     listItems.clear()
                     listItems.addAll(bondedDevicesList)
                     listAdapter.notifyDataSetChanged()
-                    setEmptyText("<no bluetooth devices found>")
+                    setEmptyText("<Sin dispositivos vinculados>")
                     menu?.findItem(R.id.ble_scan)?.isEnabled = true
                 } else {
-                    setEmptyText("<use SCAN to refresh devices>")
+                    setEmptyText("<Usa SCAN para buscar dispositivos>")
                     menu?.findItem(R.id.ble_scan)?.isEnabled = true
                 }
             }
@@ -302,7 +302,7 @@ class DevicesFragment : ListFragment() {
                 scanState = ScanState.DISCOVERY
         }
         scanState = nextScanState
-        setEmptyText("<scanning...>")
+        setEmptyText("<Escaneando...>")
         menu?.findItem(R.id.ble_scan)?.isVisible = false
         menu?.findItem(R.id.ble_scan_stop)?.isVisible = true
         if (scanState == ScanState.LE_SCAN) {
@@ -349,7 +349,7 @@ class DevicesFragment : ListFragment() {
     private fun stopScan() {
         if (scanState == ScanState.NONE)
             return
-        setEmptyText("<no bluetooth devices found>")
+        setEmptyText("<Sin dispositivos vinculados>")
         menu?.let {
             it.findItem(R.id.ble_scan)?.isVisible = true
             it.findItem(R.id.ble_scan_stop)?.isVisible = false

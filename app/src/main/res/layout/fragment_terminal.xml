@@ -12,7 +12,6 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="#D7000000"
         android:freezesText="true"
         android:gravity="bottom"
         android:scrollbars="vertical"
@@ -20,13 +19,11 @@
 
     <View
         android:layout_width="match_parent"
-        android:layout_height="2dp"
-        android:background="#D7000000" />
+        android:layout_height="2dp" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#D7000000"
         android:orientation="horizontal">
 
         <EditText

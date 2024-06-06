@@ -6,15 +6,20 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.graphics.Bitmap
 import android.icu.text.SimpleDateFormat
 import android.icu.util.Calendar
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.method.ScrollingMovementMethod
@@ -26,13 +31,32 @@ import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.ActivityCompat.finishAffinity
 import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.qrcode.QRCodeWriter
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
+import dev.turingcomplete.kotlinonetimepassword.GoogleAuthenticator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.apache.commons.codec.binary.Base32
+import java.nio.charset.StandardCharsets
 import java.util.Arrays
+import java.util.Date
 import java.util.Locale
 
 class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPressedListener {
@@ -54,6 +78,14 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
 
     private var isConnected: Boolean = false
 
+    private lateinit var otpTextView: TextView
+    private lateinit var progressBar: ProgressBar
+    private lateinit var handler: Handler
+
+    private val plainTextSecret = "HolaMundo123".toByteArray(StandardCharsets.UTF_8)
+    private val base32EncodedSecret = Base32().encodeToString(plainTextSecret)
+
+    var bol: Boolean = true
     /*
      * Lifecycle
      */
@@ -161,6 +193,8 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
         hexWatcher.enable(hexEnabled)
         sendText.addTextChangedListener(hexWatcher)
         sendText.hint = if (hexEnabled) "HEX mode" else ""
+
+        handler = Handler(Looper.getMainLooper())
 
         val sendBtn = view.findViewById<View>(R.id.send_btn)
         sendBtn.setOnClickListener { send(sendText.text.toString()) }
@@ -397,12 +431,13 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
             spn.length,
             Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
         )
-        receiveText.append(spn)
-        connected = Connected.True
-        isConnected = true
 
         // Verifica si deviceAddress es nulo antes de guardar
         if (deviceAddress != null) {
+            receiveText.append(spn)
+            connected = Connected.True
+            isConnected = true
+            showBottomSheetDialog()
             saveLastDeviceAddress(deviceAddress!!) // Guarda la dirección del dispositivo conectado
         } else {
             status("Error: deviceAddress es nulo")
@@ -466,5 +501,67 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
     private fun getLastDeviceAddress(): String? {
         val sharedPref = requireActivity().getPreferences(Context.MODE_PRIVATE)
         return sharedPref.getString("LAST_DEVICE_ADDRESS", null)
+    }
+
+    private fun showBottomSheetDialog() {
+        // Crea un BottomSheetDialog
+        val bottomSheetDialog = BottomSheetDialog(requireContext())
+
+        // Infla el layout del BottomSheet
+        val bottomSheetView = layoutInflater.inflate(R.layout.bottom_sheet_otp, null)
+
+        // Busca el botón dentro del BottomSheet
+        val bottomSheetButton: Button = bottomSheetView.findViewById(R.id.bottomSheetButton)
+        otpTextView = bottomSheetView.findViewById(R.id.otpTextView)
+        progressBar = bottomSheetView.findViewById(R.id.progressBar)
+
+        // Agrega un clic al botón del BottomSheet
+        bottomSheetButton.setOnClickListener {
+            val clipboardManager = requireActivity().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
+            val textToCopy = otpTextView.text.toString()
+
+            // Crear un objeto ClipData para almacenar el texto a copiar
+            val clipData = ClipData.newPlainText("Texto copiado", textToCopy)
+            clipboardManager.setPrimaryClip(clipData)
+            Toast.makeText(requireContext(), "Texto copiado al portapapeles", Toast.LENGTH_SHORT).show()
+            bottomSheetDialog.hide()
+        }
+
+
+        // Configura el contenido del BottomSheet
+        bottomSheetDialog.setContentView(bottomSheetView)
+
+        if (bol==true) {
+            startOtpGeneration()
+            bol=false
+        }
+
+        // Muestra el BottomSheet
+        bottomSheetDialog.show()
+    }
+
+    private fun startOtpGeneration() {
+        CoroutineScope(Dispatchers.Main).launch {
+            var counter = 0L
+            while (true) {
+                val job = launch(Dispatchers.IO) {
+                    repeat(30) {
+                        val timestamp = Date(counter * 30000 + it * 1000)
+                        val googleAuthenticator = GoogleAuthenticator(base32EncodedSecret)
+                        val otpCode = googleAuthenticator.generate(timestamp)
+
+                        withContext(Dispatchers.Main) {
+                            otpTextView.text = otpCode
+                        }
+
+                        progressBar.setProgress((it + 1) * 100 / 30, true)
+                        delay(1000)
+                    }
+                }
+                job.join()
+                counter++
+            }
+        }
     }
 }

@@ -33,7 +33,7 @@ class AllNavigation : AppCompatActivity(), OnBackPressedListener  {
         // menu should be considered as top level destinations.
         appBarConfiguration = AppBarConfiguration(
             setOf(
-                R.id.nav_terminal, R.id.nav_devices, R.id.nav_otp
+                R.id.nav_terminal, R.id.nav_devices, R.id.nav_grafana
             ), drawerLayout
         )
         setupActionBarWithNavController(navController, appBarConfiguration)

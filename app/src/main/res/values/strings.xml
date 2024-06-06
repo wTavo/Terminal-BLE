@@ -12,8 +12,7 @@
 
     <string name="pairing_request">PAIRING requested\n-> Perform pairing steps. Connect again</string>
     <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
-    <string name="title_activity_navigation_dt">NavigationDT</string>
+
     <string name="title_activity_all_navigation">AllNavigation</string>
     <string name="navigation_drawer_open">Open navigation drawer</string>
     <string name="navigation_drawer_close">Close navigation drawer</string>
@@ -23,7 +22,7 @@
 
     <string name="menu_devices">Devices</string>
     <string name="menu_terminal">Terminal</string>
-    <string name="menu_otp">OTP</string>
+    <string name="menu_grafana">Grafana</string>
 
     <!--Navigation horizontal -->
     <string name="title_devices">Devices</string>

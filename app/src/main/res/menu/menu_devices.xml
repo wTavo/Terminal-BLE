@@ -12,10 +12,10 @@
         android:visible="false" />
     <item
         android:id="@+id/bt_settings"
-        android:title="Bluetooth settings" />
+        android:title="Configuración BLE" />
     <item
         android:id="@+id/show_unnamed"
-        android:title="Show unnamed devices"
+        android:title="Mostrar dispositivos sin nombre"
         android:checkable="true"
         app:showAsAction="never"/>
 </menu>
