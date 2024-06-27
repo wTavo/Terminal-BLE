@@ -302,12 +302,14 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
             isConnected = true
             saveLastDeviceAddress(deviceAddress!!) // Guarda el dispositivo actual como el último dispositivo conectado
             requireActivity().invalidateOptionsMenu() // Actualizar el menú
+
         } catch (e: Exception) {
             onSerialConnectError(e)
         }
     }
 
     private fun disconnect() {
+
         connected = Connected.False
         service?.disconnect()
         isConnected = false
@@ -355,6 +357,7 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
 
             receiveText.append(spn)
             service?.write(data)
+            sendText.text = ""
         } catch (e: Exception) {
             onSerialIoError(e)
         }
@@ -416,6 +419,11 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener, OnBackPr
      */
     override fun onSerialConnect() {
         val statusText = "Conexión exitosa\n"
+
+        // Enviar "connect" directamente al puerto
+        val data = "connect\n".toByteArray()
+        service?.write(data)
+
         val spn = SpannableStringBuilder()
         spn.append(getCurrentTimestamp())
         spn.setSpan(

@@ -54,9 +54,9 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
 
     implementation("dev.turingcomplete:kotlin-onetimepassword:2.4.1")
-    implementation("com.google.zxing:core:3.4.1")
-    implementation("commons-codec:commons-codec:1.15")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("com.google.zxing:core:3.5.3")
+    implementation("commons-codec:commons-codec:1.17.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation ("com.google.android.material:material:1.12.0")
 }
