@@ -132,6 +132,7 @@ class SerialService : Service(), SerialListener {
         queue2.clear()
     }
 
+    @SuppressLint("SuspiciousIndentation")
     fun detach() {
         if (connected)
         listener = null
